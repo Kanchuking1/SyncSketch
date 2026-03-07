@@ -1,16 +1,19 @@
 import { useEffect, useState, useRef } from 'react'
 
-function getWsUrl() {
+function getWsUrl(): string {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   const host = window.location.hostname
   const port = import.meta.env.DEV ? '8080' : window.location.port
   return `${protocol}//${host}:${port}/ws`
 }
 
-export function useWebSocket() {
+export function useWebSocket(): {
+  connected: boolean
+  wsRef: React.RefObject<WebSocket | null>
+} {
   const [connected, setConnected] = useState(false)
-  const wsRef = useRef(null)
-  const reconnectTimeoutRef = useRef(null)
+  const wsRef = useRef<WebSocket | null>(null)
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     const connect = () => {

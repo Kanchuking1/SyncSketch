@@ -1,9 +1,8 @@
-import { useRef, useEffect, useState } from 'react'
 import Canvas from './components/Canvas'
 import { useWebSocket } from './hooks/useWebSocket'
 import './App.css'
 
-function App() {
+export default function App() {
   const { connected } = useWebSocket()
 
   return (
@@ -20,5 +19,3 @@ function App() {
     </div>
   )
 }
-
-export default App
