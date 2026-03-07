@@ -6,6 +6,11 @@ import {
   type Shape,
   type Point,
 } from '../lib/shapes'
+import {
+  isAddShapeMessage,
+  isSyncBoardMessage,
+  type ServerMessage,
+} from '../lib/protocol'
 import './Canvas.css'
 
 function drawShape(ctx: CanvasRenderingContext2D, shape: Shape): void {
@@ -37,7 +42,12 @@ function drawStroke(ctx: CanvasRenderingContext2D, points: Point[]): void {
   ctx.stroke()
 }
 
-export default function Canvas() {
+interface CanvasProps {
+  socket: WebSocket | null
+  wsRef: React.RefObject<WebSocket | null>
+}
+
+export default function Canvas({ socket, wsRef }: CanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [shapes, setShapes] = useState<Shape[]>([])
   const [currentStroke, setCurrentStroke] = useState<Point[] | null>(null)
@@ -49,6 +59,31 @@ export default function Canvas() {
     const rect = canvas.getBoundingClientRect()
     return [e.clientX - rect.left, e.clientY - rect.top]
   }, [])
+
+  // Handle incoming WebSocket messages (ADD_SHAPE, SYNC_BOARD). Subscribe to the socket in state so we always use the current connection.
+  useEffect(() => {
+    if (!socket) return
+    const handler = (event: MessageEvent) => {
+      try {
+        const msg = JSON.parse(event.data as string) as ServerMessage
+        if (isSyncBoardMessage(msg)) {
+          setShapes(msg.shapes)
+          return
+        }
+        if (isAddShapeMessage(msg)) {
+          const shape = msg.shape
+          console.log('shape: ', shape)
+          setShapes((s) =>
+            s.some((sh) => sh.id === shape.id) ? s : [...s, shape]
+          )
+        }
+      } catch {
+        // ignore invalid JSON
+      }
+    }
+    socket.addEventListener('message', handler)
+    return () => socket.removeEventListener('message', handler)
+  }, [socket])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -111,11 +146,15 @@ export default function Canvas() {
     isDrawingRef.current = false
     setCurrentStroke((prev) => {
       if (!prev || prev.length < 2) return null
-      const shape = createLineShape(prev)
+      const shape = createLineShape(prev, { id: `shape_${Date.now()}_${shapes.length}` })
       setShapes((s) => [...s, shape])
+      const ws = wsRef.current
+      if (ws?.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'ADD_SHAPE', shape }))
+      }
       return null
     })
-  }, [])
+  }, [wsRef])
 
   return (
     <canvas

@@ -3,8 +3,8 @@ import { useWebSocket } from './hooks/useWebSocket'
 import './App.css'
 
 export default function App() {
-  const { connected } = useWebSocket()
-
+  const { connected, socket, wsRef } = useWebSocket()
+  
   return (
     <div className="app">
       <header className="header">
@@ -14,7 +14,7 @@ export default function App() {
         </span>
       </header>
       <main className="main">
-        <Canvas />
+        <Canvas socket={socket} wsRef={wsRef} />
       </main>
     </div>
   )

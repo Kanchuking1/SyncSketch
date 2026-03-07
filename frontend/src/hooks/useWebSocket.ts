@@ -9,9 +9,11 @@ function getWsUrl(): string {
 
 export function useWebSocket(): {
   connected: boolean
+  socket: WebSocket | null
   wsRef: React.RefObject<WebSocket | null>
 } {
   const [connected, setConnected] = useState(false)
+  const [socket, setSocket] = useState<WebSocket | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -20,8 +22,14 @@ export function useWebSocket(): {
       const url = getWsUrl()
       const ws = new WebSocket(url)
 
-      ws.onopen = () => setConnected(true)
+      ws.onopen = () => {
+        wsRef.current = ws
+        setSocket(ws)
+        setConnected(true)
+      }
       ws.onclose = () => {
+        wsRef.current = null
+        setSocket(null)
         setConnected(false)
         reconnectTimeoutRef.current = setTimeout(connect, 2000)
       }
@@ -34,8 +42,11 @@ export function useWebSocket(): {
     return () => {
       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current)
       if (wsRef.current) wsRef.current.close()
+      wsRef.current = null
+      setSocket(null)
+      setConnected(false)
     }
   }, [])
 
-  return { connected, wsRef }
+  return { connected, socket, wsRef }
 }
