@@ -34,3 +34,18 @@ func (b *Board) Shapes() []Shape {
 	copy(out, b.shapes)
 	return out
 }
+
+// MoveShape translates the shape with the given id by (dx, dy). No-op if not found.
+func (b *Board) MoveShape(id string, dx, dy float64) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for i := range b.shapes {
+		if b.shapes[i].ID == id {
+			for j := range b.shapes[i].Points {
+				b.shapes[i].Points[j][0] += dx
+				b.shapes[i].Points[j][1] += dy
+			}
+			return
+		}
+	}
+}

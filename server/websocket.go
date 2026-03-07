@@ -52,10 +52,26 @@ func (h *hub) broadcast(message []byte) {
 	}
 }
 
-// Client message types (we only handle ADD_SHAPE for Day 3).
+func (h *hub) broadcastExcept(exclude *websocket.Conn, message []byte) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for conn := range h.conns {
+		if conn == exclude {
+			continue
+		}
+		if err := conn.WriteMessage(websocket.TextMessage, message); err != nil {
+			log.Printf("broadcast write: %v", err)
+		}
+	}
+}
+
+// Client message types.
 type clientMsg struct {
-	Type  string `json:"type"`
-	Shape *Shape `json:"shape,omitempty"`
+	Type  string   `json:"type"`
+	Shape *Shape   `json:"shape,omitempty"`
+	ID    string   `json:"id,omitempty"`
+	Dx    *float64 `json:"dx,omitempty"`
+	Dy    *float64 `json:"dy,omitempty"`
 }
 
 func (h *hub) handleMessage(conn *websocket.Conn, raw []byte) {
@@ -66,13 +82,17 @@ func (h *hub) handleMessage(conn *websocket.Conn, raw []byte) {
 	}
 	switch msg.Type {
 	case "ADD_SHAPE":
-		// Print who sent the message
 		if msg.Shape == nil {
 			return
 		}
 		h.board.AddShape(*msg.Shape)
-		// Log the shape counts
 		h.broadcast(raw)
+	case "MOVE_SHAPE":
+		if msg.ID == "" || msg.Dx == nil || msg.Dy == nil {
+			return
+		}
+		h.board.MoveShape(msg.ID, *msg.Dx, *msg.Dy)
+		h.broadcastExcept(conn, raw)
 	default:
 		// ignore unknown types
 	}
