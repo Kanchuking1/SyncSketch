@@ -74,6 +74,7 @@ export default function Canvas({ socket, wsRef }: CanvasProps) {
   const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null)
   const isDrawingRef = useRef(false)
   const dragStateRef = useRef<DragState | null>(null)
+  const currentStrokeRef = useRef<Point[] | null>(null)
 
   const getCoordinates = useCallback((e: React.MouseEvent<HTMLCanvasElement>): Point | null => {
     const canvas = canvasRef.current
@@ -161,6 +162,7 @@ export default function Canvas({ socket, wsRef }: CanvasProps) {
       const coords = getCoordinates(e)
       if (!coords) return
       isDrawingRef.current = true
+      currentStrokeRef.current = [coords]
       setCurrentStroke([coords])
     },
     [getCoordinates]
@@ -222,7 +224,11 @@ export default function Canvas({ socket, wsRef }: CanvasProps) {
       if (!isDrawingRef.current) return
       const coords = getCoordinates(e)
       if (!coords) return
-      setCurrentStroke((prev) => (prev ? [...prev, coords] : [coords]))
+      const next = currentStrokeRef.current
+        ? [...currentStrokeRef.current, coords]
+        : [coords]
+      currentStrokeRef.current = next
+      setCurrentStroke(next)
     },
     [getCoordinates]
   )
@@ -230,20 +236,21 @@ export default function Canvas({ socket, wsRef }: CanvasProps) {
   const stopDrawing = useCallback(() => {
     if (!isDrawingRef.current) return
     isDrawingRef.current = false
-    setCurrentStroke((prev) => {
-      if (!prev || prev.length < 2) return null
-      const shape = createLineShape(prev)
+    const points = currentStrokeRef.current
+    currentStrokeRef.current = null
+    setCurrentStroke(null)
+    if (points && points.length >= 2) {
+      const shape = createLineShape(points)
       setShapes((s) => [...s, shape])
       const ws = wsRef.current
       if (ws?.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'ADD_SHAPE', shape }))
       }
-      return null
-    })
+    }
   }, [wsRef])
 
   const stopDrag = useCallback(
-    (e: React.MouseEvent<HTMLCanvasElement>) => {
+    (e: React.MouseEvent<HTMLCanvasElement>) => { 
       const drag = dragStateRef.current
       if (!drag) return
       const coords = getCoordinates(e)
