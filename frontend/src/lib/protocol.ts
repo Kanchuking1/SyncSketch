@@ -21,10 +21,18 @@ export interface SyncBoardMessage {
   shapes: Shape[]
 }
 
+export interface CursorUpdateMessage {
+  type: 'CURSOR_UPDATE'
+  userId: string
+  x: number
+  y: number
+}
+
 export type ServerMessage =
   | AddShapeMessage
   | MoveShapeMessage
   | SyncBoardMessage
+  | CursorUpdateMessage
 
 export function isAddShapeMessage(m: ServerMessage): m is AddShapeMessage {
   return m.type === 'ADD_SHAPE'
@@ -36,4 +44,10 @@ export function isMoveShapeMessage(m: ServerMessage): m is MoveShapeMessage {
 
 export function isSyncBoardMessage(m: ServerMessage): m is SyncBoardMessage {
   return m.type === 'SYNC_BOARD'
+}
+
+export function isCursorUpdateMessage(
+  m: ServerMessage
+): m is CursorUpdateMessage {
+  return m.type === 'CURSOR_UPDATE'
 }

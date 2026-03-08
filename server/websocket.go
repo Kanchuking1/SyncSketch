@@ -67,11 +67,14 @@ func (h *hub) broadcastExcept(exclude *websocket.Conn, message []byte) {
 
 // Client message types.
 type clientMsg struct {
-	Type  string   `json:"type"`
-	Shape *Shape   `json:"shape,omitempty"`
-	ID    string   `json:"id,omitempty"`
-	Dx    *float64 `json:"dx,omitempty"`
-	Dy    *float64 `json:"dy,omitempty"`
+	Type   string   `json:"type"`
+	Shape  *Shape   `json:"shape,omitempty"`
+	ID     string   `json:"id,omitempty"`
+	Dx     *float64 `json:"dx,omitempty"`
+	Dy     *float64 `json:"dy,omitempty"`
+	UserID string   `json:"userId,omitempty"`
+	X      *float64 `json:"x,omitempty"`
+	Y      *float64 `json:"y,omitempty"`
 }
 
 func (h *hub) handleMessage(conn *websocket.Conn, raw []byte) {
@@ -92,6 +95,11 @@ func (h *hub) handleMessage(conn *websocket.Conn, raw []byte) {
 			return
 		}
 		h.board.MoveShape(msg.ID, *msg.Dx, *msg.Dy)
+		h.broadcastExcept(conn, raw)
+	case "CURSOR_UPDATE":
+		if msg.UserID == "" || msg.X == nil || msg.Y == nil {
+			return
+		}
 		h.broadcastExcept(conn, raw)
 	default:
 		// ignore unknown types

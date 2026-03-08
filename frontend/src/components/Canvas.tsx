@@ -9,6 +9,7 @@ import {
 import { hitTestShapes } from '../lib/hitTest'
 import {
   isAddShapeMessage,
+  isCursorUpdateMessage,
   isMoveShapeMessage,
   isSyncBoardMessage,
   type ServerMessage,
@@ -55,6 +56,42 @@ function drawStroke(ctx: CanvasRenderingContext2D, points: Point[]): void {
   ctx.stroke()
 }
 
+export interface RemoteCursor {
+  x: number
+  y: number
+  lastSeen: number
+}
+
+function drawCursor(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  label: string
+): void {
+  ctx.save()
+  ctx.fillStyle = 'rgba(99, 102, 241, 0.9)'
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)'
+  ctx.lineWidth = 2
+  ctx.beginPath()
+  ctx.arc(x, y, 6, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.stroke()
+  ctx.font = '11px system-ui, sans-serif'
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)'
+  ctx.lineWidth = 2
+  const shortId = label.length > 8 ? label.slice(0, 8) + '…' : label
+  const m = ctx.measureText(shortId)
+  const pad = 4
+  const w = m.width + pad * 2
+  const h = 14
+  ctx.strokeRect(x - w / 2, y + 10, w, h)
+  ctx.fillRect(x - w / 2, y + 10, w, h)
+  ctx.fillStyle = '#1e1b4b'
+  ctx.fillText(shortId, x - m.width / 2, y + 20)
+  ctx.restore()
+}
+
 interface DragState {
   shapeId: string
   startX: number
@@ -75,6 +112,31 @@ export default function Canvas({ socket, wsRef }: CanvasProps) {
   const isDrawingRef = useRef(false)
   const dragStateRef = useRef<DragState | null>(null)
   const currentStrokeRef = useRef<Point[] | null>(null)
+  const [userId] = useState(() => `user_${Math.random().toString(36).slice(2, 10)}`)
+  const lastCursorSendRef = useRef(0)
+  const CURSOR_THROTTLE_MS = 50
+  const CURSOR_STALE_MS = 3000
+
+  const [remoteCursors, setRemoteCursors] = useState<Record<string, RemoteCursor>>({})
+  const [resizeTrigger, setResizeTrigger] = useState(0)
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now()
+      setRemoteCursors((c) => {
+        const next = { ...c }
+        let changed = false
+        for (const [uid, cur] of Object.entries(next)) {
+          if (now - cur.lastSeen >= CURSOR_STALE_MS) {
+            delete next[uid]
+            changed = true
+          }
+        }
+        return changed ? next : c
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [])
 
   const getCoordinates = useCallback((e: React.MouseEvent<HTMLCanvasElement>): Point | null => {
     const canvas = canvasRef.current
@@ -113,6 +175,13 @@ export default function Canvas({ socket, wsRef }: CanvasProps) {
             )
           )
         }
+        if (isCursorUpdateMessage(msg)) {
+          const now = Date.now()
+          setRemoteCursors((c) => ({
+            ...c,
+            [msg.userId]: { x: msg.x, y: msg.y, lastSeen: now },
+          }))
+        }
       } catch {
         // ignore invalid JSON
       }
@@ -126,17 +195,23 @@ export default function Canvas({ socket, wsRef }: CanvasProps) {
     if (!canvas) return
     const ctx = canvas.getContext('2d')
     if (!ctx) return
-    const resize = () => {
+    const syncSizeAndRedraw = () => {
       const dpr = window.devicePixelRatio || 1
       const rect = canvas.getBoundingClientRect()
       canvas.width = Math.floor(rect.width * dpr)
       canvas.height = Math.floor(rect.height * dpr)
       ctx.setTransform(1, 0, 0, 1, 0, 0)
       ctx.scale(dpr, dpr)
+      setResizeTrigger((t) => t + 1)
     }
-    resize()
-    window.addEventListener('resize', resize)
-    return () => window.removeEventListener('resize', resize)
+    syncSizeAndRedraw()
+    const observer = new ResizeObserver(syncSizeAndRedraw)
+    observer.observe(canvas)
+    window.addEventListener('resize', syncSizeAndRedraw)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', syncSizeAndRedraw)
+    }
   }, [])
 
   useEffect(() => {
@@ -155,7 +230,13 @@ export default function Canvas({ socket, wsRef }: CanvasProps) {
     if (currentStroke?.length) {
       drawStroke(ctx, currentStroke)
     }
-  }, [shapes, currentStroke, selectedShapeId])
+    const now = Date.now()
+    for (const [uid, cur] of Object.entries(remoteCursors)) {
+      if (now - cur.lastSeen < CURSOR_STALE_MS) {
+        drawCursor(ctx, cur.x, cur.y, uid)
+      }
+    }
+  }, [shapes, currentStroke, selectedShapeId, remoteCursors, resizeTrigger])
 
   const startDrawing = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -198,12 +279,26 @@ export default function Canvas({ socket, wsRef }: CanvasProps) {
     [getCoordinates, shapes, startDrag, startDrawing]
   )
 
+  const sendCursorUpdate = useCallback(
+    (x: number, y: number) => {
+      const now = Date.now()
+      if (now - lastCursorSendRef.current < CURSOR_THROTTLE_MS) return
+      lastCursorSendRef.current = now
+      const ws = wsRef.current
+      if (ws?.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'CURSOR_UPDATE', userId, x, y }))
+      }
+    },
+    [userId, wsRef]
+  )
+
   const draw = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
+      const coords = getCoordinates(e)
+      if (!coords) return
+
       const drag = dragStateRef.current
       if (drag) {
-        const coords = getCoordinates(e)
-        if (!coords) return
         const dx = coords[0] - drag.startX
         const dy = coords[1] - drag.startY
         setShapes((s) =>
@@ -221,16 +316,17 @@ export default function Canvas({ socket, wsRef }: CanvasProps) {
         )
         return
       }
-      if (!isDrawingRef.current) return
-      const coords = getCoordinates(e)
-      if (!coords) return
-      const next = currentStrokeRef.current
-        ? [...currentStrokeRef.current, coords]
-        : [coords]
-      currentStrokeRef.current = next
-      setCurrentStroke(next)
+      if (isDrawingRef.current) {
+        const next = currentStrokeRef.current
+          ? [...currentStrokeRef.current, coords]
+          : [coords]
+        currentStrokeRef.current = next
+        setCurrentStroke(next)
+        return
+      }
+      sendCursorUpdate(coords[0], coords[1])
     },
-    [getCoordinates]
+    [getCoordinates, sendCursorUpdate]
   )
 
   const stopDrawing = useCallback(() => {
