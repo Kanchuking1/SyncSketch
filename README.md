@@ -1,6 +1,6 @@
 # SyncSketch
 
-Real-time collaborative whiteboard — draw, edit, and sync on a shared canvas.
+V0 Real-time collaborative whiteboard — draw, edit, and sync on a shared canvas.
 
 ## Local setup
 
