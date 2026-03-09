@@ -1,10 +1,15 @@
 import { useEffect, useState, useRef } from 'react'
 
 function getWsUrl(): string {
+  const envUrl = import.meta.env.VITE_WS_URL
+  if (envUrl && typeof envUrl === 'string' && envUrl.startsWith('ws')) {
+    return envUrl
+  }
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   const host = window.location.hostname
   const port = import.meta.env.DEV ? '8080' : window.location.port
-  return `${protocol}//${host}:${port}/ws`
+  const withPort = port ? `${host}:${port}` : host
+  return `${protocol}//${withPort}/ws`
 }
 
 export function useWebSocket(): {

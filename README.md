@@ -2,7 +2,7 @@
 
 Real-time collaborative whiteboard — draw, edit, and sync on a shared canvas.
 
-## Day 1 — Local setup
+## Local setup
 
 **Run the backend (Go):**
 ```bash
@@ -17,3 +17,7 @@ cd frontend
 npm run dev
 ```
 Open http://localhost:5173 — you can draw on the canvas; the header shows **● Connected** when the WebSocket is active.
+
+## Deployment (Day 7)
+
+See **[DEPLOY.md](./DEPLOY.md)** for deploying the backend (Fly.io or Render) and frontend (Vercel), configuring the production WebSocket URL, and publishing a demo link.
