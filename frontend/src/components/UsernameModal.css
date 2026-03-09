@@ -1,0 +1,76 @@
+.username-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.username-modal {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 1.5rem 2rem;
+  min-width: 280px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.username-modal-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #f1f5f9;
+  margin: 0 0 0.5rem 0;
+}
+
+.username-modal-desc {
+  font-size: 0.875rem;
+  color: #94a3b8;
+  margin: 0 0 1.25rem 0;
+}
+
+.username-modal form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.username-modal-input {
+  padding: 0.625rem 0.75rem;
+  font-size: 1rem;
+  border: 1px solid #475569;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #f1f5f9;
+  outline: none;
+}
+
+.username-modal-input:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
+}
+
+.username-modal-input::placeholder {
+  color: #64748b;
+}
+
+.username-modal-submit {
+  padding: 0.625rem 1rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #fff;
+  background: #6366f1;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.username-modal-submit:hover:not(:disabled) {
+  background: #4f46e5;
+}
+
+.username-modal-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

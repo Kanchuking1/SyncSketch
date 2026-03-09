@@ -313,7 +313,7 @@ Users can see the live cursor position of other collaborators.
 
 Objectives:
 
-Persist board state across refreshes.
+Persist board state across refreshes. Username based Identification.
 
 Tasks:
 
@@ -321,6 +321,8 @@ Tasks:
 * Send board state to new clients
 * Implement board synchronization messages
 * Optional Redis integration
+* On Page Load Add Username Set Modal, load default value from Local Cache
+* Use username to represent solution cursor.
 
 Deliverable:
 

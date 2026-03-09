@@ -89,12 +89,18 @@ func (h *hub) handleMessage(conn *websocket.Conn, raw []byte) {
 			return
 		}
 		h.board.AddShape(*msg.Shape)
+		if err := h.board.Save(); err != nil {
+			log.Printf("board save: %v", err)
+		}
 		h.broadcast(raw)
 	case "MOVE_SHAPE":
 		if msg.ID == "" || msg.Dx == nil || msg.Dy == nil {
 			return
 		}
 		h.board.MoveShape(msg.ID, *msg.Dx, *msg.Dy)
+		if err := h.board.Save(); err != nil {
+			log.Printf("board save: %v", err)
+		}
 		h.broadcastExcept(conn, raw)
 	case "CURSOR_UPDATE":
 		if msg.UserID == "" || msg.X == nil || msg.Y == nil {
@@ -109,7 +115,7 @@ func (h *hub) handleMessage(conn *websocket.Conn, raw []byte) {
 var defaultHub *hub
 
 func init() {
-	defaultHub = newHub(newBoard())
+	defaultHub = newHub(LoadBoard("data/board.json"))
 }
 
 func handleWebSocket(w http.ResponseWriter, r *http.Request) {

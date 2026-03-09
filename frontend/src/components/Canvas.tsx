@@ -102,9 +102,12 @@ interface DragState {
 interface CanvasProps {
   socket: WebSocket | null
   wsRef: React.RefObject<WebSocket | null>
+  username: string
 }
 
-export default function Canvas({ socket, wsRef }: CanvasProps) {
+const FALLBACK_USER_ID = () => `user_${Math.random().toString(36).slice(2, 10)}`
+
+export default function Canvas({ socket, wsRef, username }: CanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [shapes, setShapes] = useState<Shape[]>([])
   const [currentStroke, setCurrentStroke] = useState<Point[] | null>(null)
@@ -112,7 +115,8 @@ export default function Canvas({ socket, wsRef }: CanvasProps) {
   const isDrawingRef = useRef(false)
   const dragStateRef = useRef<DragState | null>(null)
   const currentStrokeRef = useRef<Point[] | null>(null)
-  const [userId] = useState(() => `user_${Math.random().toString(36).slice(2, 10)}`)
+  const [userId] = useState(FALLBACK_USER_ID)
+  const cursorLabel = username.trim() || userId
   const lastCursorSendRef = useRef(0)
   const CURSOR_THROTTLE_MS = 50
   const CURSOR_STALE_MS = 3000
@@ -286,10 +290,10 @@ export default function Canvas({ socket, wsRef }: CanvasProps) {
       lastCursorSendRef.current = now
       const ws = wsRef.current
       if (ws?.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'CURSOR_UPDATE', userId, x, y }))
+        ws.send(JSON.stringify({ type: 'CURSOR_UPDATE', userId: cursorLabel, x, y }))
       }
     },
-    [userId, wsRef]
+    [cursorLabel, wsRef]
   )
 
   const draw = useCallback(
